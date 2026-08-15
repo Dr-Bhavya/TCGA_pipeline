@@ -8,7 +8,6 @@
  * ============================================================================
  */
 process DESEQ2 {
-    container 'docker_tcga_env:latest'
 
     input:
         tuple val(cancer), path(RNA_count), path(metadata_path)
