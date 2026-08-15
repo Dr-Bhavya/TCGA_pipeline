@@ -8,7 +8,7 @@
  * ============================================================================
  */
 process GDCRNATOOLS {
-    //container 'docker_tcga_env:latest'
+    container 'docker_tcga_env:latest'
 
     input:
         tuple val(cancer), path(manifest_cancer), path(manifest_normal), path(metadata_path)
