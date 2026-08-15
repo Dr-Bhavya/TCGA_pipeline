@@ -11,7 +11,7 @@ jobs:
   # JOB 1: REMOTE EC2 PROVISIONING (Runs on GitHub Cloud Servers)
   # ==========================================================================
   setup-ec2-environment:
-    runs-on: ubuntu-latest # Runs on GitHub's free nodes to configure the machine
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Code Repository
@@ -20,9 +20,9 @@ jobs:
     - name: Execute Remote Setup over SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.TCGA_AWS_EC2_ACCESS_KEY }}
+        host: ${{ secrets.EC2_PUBLIC_IP }}
         username: ubuntu
-        key: ${{ secrets.TCGA_AWS_EC2_PUBLIC_IP }}
+        key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         timeout: 10m
         script: |
@@ -41,9 +41,14 @@ jobs:
             curl -o actions-runner-linux-x64-3.220.0.tar.gz -L https://github.com
             tar xzf ./actions-runner-linux-x64-3.220.0.tar.gz
             
+            echo "=== 4. GENERATING DYNAMIC REGISTRATION KEY VIA PERMANENT PAT ==="
+            # Uses your saved permanent GH_PAT to request a fresh token for the runner registration
+            REG_TOKEN=$(curl -sX POST -H "Authorization: token ${{ secrets.GH_PAT }}" \
+              https://github.com{{ github.repository }}/actions/runners/registration-token | grep -o '"token": "[^"]*' | grep -o '[^"]*$')
+            
             ./config.sh --unattended \
               --url "https://github.com{{ github.repository }}" \
-              --token "${{ secrets.RUNNER_REGISTRATION_TOKEN }}" \
+              --token "${REG_TOKEN}" \
               --name "ec2-free-runner" \
               --replace
               
@@ -57,8 +62,8 @@ jobs:
   # JOB 2: PIPELINE INTEGRATION CHECK (Runs Directly on your Free EC2 Machine)
   # ==========================================================================
   run-nextflow-test:
-    runs-on: self-hosted               # Triggers only on your private EC2 node [1]
-    needs: setup-ec2-environment        # Strict block forcing this to WAIT for Job 1 to finish
+    runs-on: self-hosted               
+    needs: setup-ec2-environment        
 
     steps:
     - name: Checkout Code Repository
@@ -67,7 +72,6 @@ jobs:
     - name: Build Local Environment Image
       run: |
         docker build -t docker_tcga_env:latest .
-        docker image ls
 
     - name: Setup Nextflow Engine
       run: |
