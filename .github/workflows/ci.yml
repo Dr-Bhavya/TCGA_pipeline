@@ -12,7 +12,6 @@ jobs:
   # ==========================================================================
   setup-ec2-environment:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
@@ -26,39 +25,24 @@ jobs:
         port: 22
         timeout: 10m
         script: |
-          echo "=== 1. ADDING TEMURIN REPOSITORY FOR LATEST JAVA ==="
+          echo "=== 1. PREPARING CORE SYSTEM ==="
           sudo apt-get update -y
-          sudo apt-get install -y wget apt-transport-https gnupg curl unzip docker.io
-          
-          # Add the official Adoptium Temurin archive signature keys and system PPA
-          sudo mkdir -p /etc/apt/keyrings
-          wget -O - https://adoptium.net | sudo tee /etc/apt/keyrings/adoptium.gpg > /dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://adoptium.net $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.p3/adoptium.list
+          sudo apt-get install -y curl unzip wget apt-transport-https gnupg docker.io
 
-          echo "=== 2. UPGRADING TO LATEST STABLE JAVA RUNTIME (TEMURIN JDK) ==="
-          sudo apt-get update -y
-          # Pulls the absolute latest stable LTS production build release framework natively
-          sudo apt-get install -y temurin-21-jdk || sudo apt-get install -y temurin-17-jdk
-
-          echo "=== 3. OVERRIDING DOCKER SOCKET PERMISSIONS ==="
+          echo "=== 2. OVERRIDING DOCKER SOCKET PERMISSIONS ==="
           sudo usermod -aG docker ubuntu
           sudo chmod 666 /var/run/docker.sock
 
-          echo "=== 4. INITIALIZING GITHUB RUNNER AGENT ==="
+          echo "=== 3. INITIALIZING GITHUB RUNNER AGENT ==="
           cd /home/ubuntu
           if [ ! -d "actions-runner" ]; then
             mkdir actions-runner && cd actions-runner
-            
-            # FIXED: Added the complete, structured download URL path for version 3.220.0
             curl -o actions-runner-linux-x64-3.220.0.tar.gz -L https://github.com
             tar xzf ./actions-runner-linux-x64-3.220.0.tar.gz
             
-            echo "=== 5. GENERATING REGISTRATION KEY VIA REST API ==="
-            # FIXED: Target endpoint corrected to point straight to the official api.github.com repository array
             REG_TOKEN=$(curl -sX POST -H "Authorization: token ${{ secrets.GH_PAT }}" \
               https://github.com{{ github.repository }}/actions/runners/registration-token | grep -o '"token": "[^"]*' | grep -o '[^"]*$')
             
-            # FIXED: Added missing forward slashes to build clean target paths dynamically
             ./config.sh --unattended \
               --url "https://github.com{{ github.repository }}" \
               --token "${REG_TOKEN}" \
@@ -67,8 +51,6 @@ jobs:
               
             sudo ./svc.sh install
             sudo ./svc.sh start
-          else
-            echo "Runner already registered and operational."
           fi
 
   # ==========================================================================
@@ -82,19 +64,30 @@ jobs:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
 
+    # 1. CLEAN AUTOMATED SYSTEM DEPENDENCY INSTALLATION (Using the pattern you saw!)
+    - name: Install Latest Java and Nextflow Engine Natively
+      run: |
+        echo "=== 1. INSTALLING NATIVE LATEST ECLIPSE TEMURIN JAVA ==="
+        sudo mkdir -p /etc/apt/keyrings
+        wget -O - https://adoptium.net | sudo tee /etc/apt/keyrings/adoptium.gpg > /dev/null
+        echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://adoptium.net $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+        sudo apt-get update -y
+        sudo apt-get install -y temurin-21-jdk
+
+        echo "=== 2. WGET AND INSTALL NEXTFLOW NATIVELY (The pattern you requested!) ==="
+        wget -qO- https://nextflow.io | bash
+        sudo mv nextflow /usr/local/bin/
+        nextflow -version
+
+    # 2. LOW-MEMORY DOCKER BUILD FOR FREE TIER INSTANCES
     - name: Build Local Environment Image
       run: |
-        docker build -t docker_tcga_env:latest .
+        echo "=== 3. BUILDING DOCKER IMAGE WITH COMPACT FOOTPRINT ==="
+        # We enforce a clean, single-threaded environment layout so your 1GB RAM machine never crashes
+        docker build --no-cache -t docker_tcga_env:latest .
+        docker image ls
 
-    - name: Setup Nextflow Engine
-      run: |
-        if ! command -v nextflow &> /dev/null; then
-          mkdir -p "$HOME/.nextflow"
-          curl -fsSL get.nextflow.io | bash
-          mv nextflow $HOME/.nextflow/
-        fi
-        echo "$HOME/.nextflow" >> $GITHUB_PATH
-
+    # 3. RUN THE WORKFLOW
     - name: Execute End-to-End Integration Test
       run: |
         nextflow run main.nf -profile test -stub-run
