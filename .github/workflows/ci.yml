@@ -29,29 +29,35 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y curl unzip wget apt-transport-https gnupg docker.io
 
-          echo "=== 2. OVERRIDING DOCKER SOCKET PERMISSIONS ==="
+          echo "=== 2. ADDING USER TO DOCKER GROUP ==="
           sudo usermod -aG docker ubuntu
-          sudo chmod 666 /var/run/docker.sock
+          # No need for chmod 666 on docker.sock once the user is in the docker group —
+          # that chmod grants root-equivalent Docker access to every local user/process.
 
           echo "=== 3. INITIALIZING GITHUB RUNNER AGENT ==="
           cd /home/ubuntu
           if [ ! -d "actions-runner" ]; then
             mkdir actions-runner && cd actions-runner
-            # FIXED: Corrected download endpoint link targeting GitHub Releases
-            curl -o actions-runner-linux-x64-3.220.0.tar.gz -L https://github.com
-            tar xzf ./actions-runner-linux-x64-3.220.0.tar.gz
-            
-            # FIXED: Corrected api endpoint using ://github.com and valid token expression context syntax
+
+            # Current latest release as of this writing is v2.336.0.
+            # Verify against https://github.com/actions/runner/releases before using in production.
+            RUNNER_VERSION="2.336.0"
+            curl -o actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz -L \
+              "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
+            tar xzf ./actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
+
+            # Registration-token endpoint lives on api.github.com, and github.repository
+            # needs the leading $ to actually be interpolated by the Actions expression syntax
             REG_TOKEN=$(curl -sX POST -H "Authorization: token ${{ secrets.GH_PAT }}" \
-              "https://://github.com${{ github.repository }}/actions/runners/registration-token" | grep -o '"token": "[^"]*' | grep -o '[^"]*$')
-            
-            # FIXED: Fixed repo target url format context syntax string
+              "https://api.github.com/repos/${{ github.repository }}/actions/runners/registration-token" \
+              | grep -o '"token": "[^"]*' | grep -o '[^"]*$')
+
             ./config.sh --unattended \
-              --url "https://github.com{{ github.repository }}" \
+              --url "https://github.com/${{ github.repository }}" \
               --token "${REG_TOKEN}" \
               --name "tcga_pipeline_nextflow" \
               --replace
-              
+
             sudo ./svc.sh install
             sudo ./svc.sh start
           else
@@ -64,34 +70,42 @@ jobs:
   # JOB 2: PIPELINE INTEGRATION CHECK (Runs Directly on your Free EC2 Machine)
   # ==========================================================================
   run-nextflow-test:
-    runs-on: self-hosted               
-    needs: setup-ec2-environment        
+    runs-on: self-hosted
+    needs: setup-ec2-environment
 
     steps:
     - name: Checkout Code Repository
       uses: actions/checkout@v4
 
-    # 1. CLEAN AUTOMATED SYSTEM DEPENDENCY INSTALLATION
+    # 1. SYSTEM DEPENDENCY INSTALLATION
     - name: Install Latest Java and Nextflow Engine Natively
       run: |
-        echo "=== 1. INSTALLING NATIVE LATEST ECLIPSE TEMURIN JAVA ==="
+        echo "=== 1. INSTALLING NATIVE ECLIPSE TEMURIN JAVA ==="
         sudo mkdir -p /etc/apt/keyrings
-        # FIXED: Pulled standard armor keyring target distribution to prevent modern deprecation warning flags
-        wget -qO - https://adoptium.net | sudo tee /etc/apt/keyrings/adoptium.gpg > /dev/null
-        echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://adoptium.net $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+
+        # Correct GPG key endpoint, and the key must be dearmored into a binary
+        # keyring for apt's signed-by= option to accept it
+        wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+          | gpg --dearmor | sudo tee /etc/apt/keyrings/adoptium.gpg > /dev/null
+
+        echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print $2}' /etc/os-release) main" \
+          | sudo tee /etc/apt/sources.list.d/adoptium.list
         sudo apt-get update -y
         sudo apt-get install -y temurin-21-jdk
 
-        echo "=== 2. WGET AND INSTALL NEXTFLOW NATIVELY ==="
+        echo "=== 2. INSTALLING NEXTFLOW NATIVELY ==="
         wget -qO- https://get.nextflow.io | bash
         sudo mv nextflow /usr/local/bin/
         nextflow -version
 
-    # 2. LOW-MEMORY DOCKER BUILD FOR FREE TIER INSTANCES
+    # 2. DOCKER BUILD
     - name: Build Local Environment Image
       run: |
-        echo "=== 3. BUILDING DOCKER IMAGE WITH COMPACT FOOTPRINT ==="
-        docker build --no-cache -t docker_tcga_env:latest .
+        echo "=== 3. BUILDING DOCKER IMAGE ==="
+        # Dropped --no-cache: it forces a full rebuild every run, which works
+        # against a "compact/low-memory" free-tier goal. Re-add only if you
+        # specifically need to bust layer caching.
+        docker build -t docker_tcga_env:latest .
         docker image ls
 
     # 3. RUN THE WORKFLOW
