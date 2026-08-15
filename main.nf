@@ -2,9 +2,12 @@
 
 /* 
  * ============================================================================
- * MODULE INCLUDE STATEMENTS
+ * PIPELINE ORCHESTRATION WORKFLOW
+ * Description: Main pipeline script integrating TCGA data fetching, DESeq2 
+ *              differential analysis, and a structured RRA meta-analysis.
  * ============================================================================
  */
+
 include { GDCRNATOOLS } from './modules/GDCRNATools.nf'
 include { DESEQ2 } from './modules/DESeq2.nf'
 include { RRA } from './modules/RobustRankAggreg.nf'
@@ -15,11 +18,13 @@ include { RRA } from './modules/RobustRankAggreg.nf'
  * ============================================================================
  */
 params {
-    // Primary input (file of input manifest files, one per line)
     input_manifest: Path
     input_metadata: Path
-    custom_merge_script: Path
     annotation: Path
+    custom_merge_script: Path
+    rra_script_merge: Path
+    rra_script_run: Path
+    rra_script_plot: Path
 }
 
 /* 
@@ -28,44 +33,46 @@ params {
  * ============================================================================
  */
 workflow {
+
     main:
-        // Initialize manifest channel and parse CSV contents
-        read_manifest_ch = channel.fromPath(params.input_manifest)
+        // Parse the sample input manifest CSV file into structural tuple data
         read_manifest_ch = channel.fromPath(params.input_manifest)
             .splitCsv(header: true)
             .map { row -> 
-                tuple(
-                    row.cancer_type, 
-                    file(row.cancer_manifest_file_path), 
-                    file(row.normal_manifest_file_path)
-                ) 
+                tuple(row.cancer_type, file(row.cancer_manifest_file_path), file(row.normal_manifest_file_path)) 
             }
 
-        // Initialize metadata channel and parse CSV contents
+        // Parse matching sample metadata details
         read_metadata_ch = channel.fromPath(params.input_metadata)
             .splitCsv(header: true)
             .map { row -> 
                 tuple(row.cancer_type, file(row.metadata_file_path)) 
             }
 
-        // Join manifest data and clinical metadata on the common cancer type key
+        // Combine manifest data and clinical metadata on the common cancer type key
         combined_input_ch = read_manifest_ch.join(read_metadata_ch)
 
-        // Process data downloading and parsing using GDCRNATools
+        // Stage 1: Execute downloading and counts construction
         GDCRNATOOLS(combined_input_ch, file(params.custom_merge_script))
             
-        // Construct DESeq2 input channel by linking counts with metadata
+        // Stage 2: Bind generated expression matrices with sample metadata for DESeq2
         deseq2_input_ch = GDCRNATOOLS.out.count.join(read_metadata_ch)
         DESEQ2(deseq2_input_ch, params.annotation)
 
-        // Extract and aggregate all differentially expressed gene files from all cohorts
-        all_deg_up_files_ch = DESEQ2.out.degs.map { cancer, file_path -> file_path }.collect()
+        // Stage 3: Isolate and collect all downstream targets into a global array
+        all_deg_files_ch = DESEQ2.out.degs.map { cancer, file_path -> file_path }.collect()
         
-        // Compute Robust Rank Aggregation cross-study comparison
-        RRA(all_deg_up_files_ch, params.annotation)
+        // Stage 4: Run Robust Rank Aggregation tracking cross-cohort consensus signals
+        RRA(
+            all_deg_files_ch, 
+            params.annotation, 
+            file(params.rra_script_merge), 
+            file(params.rra_script_run), 
+            file(params.rra_script_plot)
+        )
 
     publish:
-        // Expose internal process output channels to the workflow output context
+        // Expose nested pipeline output channels to the target deployment block
         downloaded_files = GDCRNATOOLS.out.tcga_folder
         count_matrix = GDCRNATOOLS.out.count
         condition_files = DESEQ2.out.coldata
