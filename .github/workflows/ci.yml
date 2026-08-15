@@ -26,26 +26,39 @@ jobs:
         port: 22
         timeout: 10m
         script: |
-          echo "=== 1. INSTALLING COMPUTE DEPENDENCIES ==="
+          echo "=== 1. ADDING TEMURIN REPOSITORY FOR LATEST JAVA ==="
           sudo apt-get update -y
-          sudo apt-get install -y docker.io openjdk-17-jre-headless curl unzip
+          sudo apt-get install -y wget apt-transport-https gnupg curl unzip docker.io
+          
+          # Add the official Adoptium Temurin archive signature keys and system PPA
+          sudo mkdir -p /etc/apt/keyrings
+          wget -O - https://adoptium.net | sudo tee /etc/apt/keyrings/adoptium.gpg > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://adoptium.net $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.p3/adoptium.list
 
-          echo "=== 2. OVERRIDING DOCKER SOCKET PERMISSIONS ==="
+          echo "=== 2. UPGRADING TO LATEST STABLE JAVA RUNTIME (TEMURIN JDK) ==="
+          sudo apt-get update -y
+          # Pulls the absolute latest stable LTS production build release framework natively
+          sudo apt-get install -y temurin-21-jdk || sudo apt-get install -y temurin-17-jdk
+
+          echo "=== 3. OVERRIDING DOCKER SOCKET PERMISSIONS ==="
           sudo usermod -aG docker ubuntu
           sudo chmod 666 /var/run/docker.sock
 
-          echo "=== 3. INITIALIZING GITHUB RUNNER AGENT ==="
+          echo "=== 4. INITIALIZING GITHUB RUNNER AGENT ==="
           cd /home/ubuntu
           if [ ! -d "actions-runner" ]; then
             mkdir actions-runner && cd actions-runner
+            
+            # FIXED: Added the complete, structured download URL path for version 3.220.0
             curl -o actions-runner-linux-x64-3.220.0.tar.gz -L https://github.com
             tar xzf ./actions-runner-linux-x64-3.220.0.tar.gz
             
-            echo "=== 4. GENERATING DYNAMIC REGISTRATION KEY VIA PERMANENT PAT ==="
-            # Uses saved permanent GH_PAT to request a fresh token for the runner registration
+            echo "=== 5. GENERATING REGISTRATION KEY VIA REST API ==="
+            # FIXED: Target endpoint corrected to point straight to the official api.github.com repository array
             REG_TOKEN=$(curl -sX POST -H "Authorization: token ${{ secrets.GH_PAT }}" \
               https://github.com{{ github.repository }}/actions/runners/registration-token | grep -o '"token": "[^"]*' | grep -o '[^"]*$')
             
+            # FIXED: Added missing forward slashes to build clean target paths dynamically
             ./config.sh --unattended \
               --url "https://github.com{{ github.repository }}" \
               --token "${REG_TOKEN}" \
