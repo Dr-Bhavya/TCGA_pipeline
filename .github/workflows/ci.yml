@@ -20,9 +20,9 @@ jobs:
     - name: Execute Remote Setup over SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.EC2_PUBLIC_IP }}
+        host: ${{ secrets.TCGA_AWS_EC2_PUBLIC_IP }}
         username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
+        key: ${{ secrets.TCGA_AWS_EC2_ACCESS_KEY }}
         port: 22
         timeout: 10m
         script: |
@@ -42,7 +42,7 @@ jobs:
             tar xzf ./actions-runner-linux-x64-3.220.0.tar.gz
             
             echo "=== 4. GENERATING DYNAMIC REGISTRATION KEY VIA PERMANENT PAT ==="
-            # Uses your saved permanent GH_PAT to request a fresh token for the runner registration
+            # Uses saved permanent GH_PAT to request a fresh token for the runner registration
             REG_TOKEN=$(curl -sX POST -H "Authorization: token ${{ secrets.GH_PAT }}" \
               https://github.com{{ github.repository }}/actions/runners/registration-token | grep -o '"token": "[^"]*' | grep -o '[^"]*$')
             
