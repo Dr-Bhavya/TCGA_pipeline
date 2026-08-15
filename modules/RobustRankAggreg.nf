@@ -1,5 +1,5 @@
 process RRA {
-    //container 'docker_tcga_env:latest'
+    container 'docker_tcga_env:latest'
 
     input:
         path deg_files
