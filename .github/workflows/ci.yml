@@ -46,7 +46,7 @@ jobs:
             ./config.sh --unattended \
               --url "https://github.com{{ github.repository }}" \
               --token "${REG_TOKEN}" \
-              --name "ec2-free-runner" \
+              --name "tcga_pipeline_nextflow" \
               --replace
               
             sudo ./svc.sh install
