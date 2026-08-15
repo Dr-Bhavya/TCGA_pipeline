@@ -3,7 +3,8 @@
 /* 
  * ============================================================================
  * MODULE: GDCRNATOOLS
- * Description: Downloads TCGA manifest components and assembles count matrices
+ * Description: Downloads TCGA cohort inputs and merges them into standard
+ *              transcriptomic raw count matrices.
  * ============================================================================
  */
 process GDCRNATOOLS {
@@ -17,22 +18,17 @@ process GDCRNATOOLS {
         tuple val(cancer), path("${cancer}_Data"), emit: tcga_folder
         tuple val(cancer), path("${cancer}_RNA_counts.csv"), emit: count
 
-    script:
-        /* 
-         * Execution Context: Embedded R Script 
-         */
+    script: 
+        // Execution Context: Embedded R Script         
         """
         #!/usr/bin/env Rscript
 
         source("${merge_script}")
 
-        # Import demographic and clinical annotations
         metadata_file <- read.csv("${metadata_path}", row.names = 1, header = TRUE, check.names = FALSE)
-
-        # Consolidate target paths into a single mapping vector
         manifest_vector <- c("${manifest_cancer}", "${manifest_normal}")
 
-        # Applies gdcRNADownload to each manifest in the vector
+        # Batch download manifest components using the standard GDC client
         lapply(manifest_vector, function(x) {              
             gdcRNADownload(
                 manifest = x,
@@ -41,7 +37,7 @@ process GDCRNATOOLS {
             )
         })
 
-        # Assemble individual sample files into a single unified matrix
+        # Assemble independent sample profiles into a centralized expression matrix
         rnaCounts <- gdcRNAMerge(
             metadata = metadata_file, 
             path = "${cancer}_Data",
@@ -49,7 +45,6 @@ process GDCRNATOOLS {
             data.type = "RNAseq"
         )
                         
-        # Export structured matrix to persistent storage
         write.csv(rnaCounts, file = "${cancer}_RNA_counts.csv")
         """
 }
