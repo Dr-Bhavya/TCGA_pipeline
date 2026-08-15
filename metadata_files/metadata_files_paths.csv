@@ -1,0 +1,6 @@
+cancer_type,metadata_file_path
+BRCA,metadata_files/BRCA_metadata.csv
+CHOL,metadata_files/CHOL_metadata.csv
+COAD,metadata_files/COAD_metadata.csv
+ESCA,metadata_files/ESCA_metadata.csv
+HNSC,metadata_files/HNSC_metadata.csv

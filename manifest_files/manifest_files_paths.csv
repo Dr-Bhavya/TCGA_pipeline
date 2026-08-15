@@ -1,0 +1,6 @@
+cancer_type,cancer_manifest_file_path,normal_manifest_file_path
+BRCA,manifest_files/First_stage_cancer/BRCA_C1_manifest.txt,manifest_files/Normal/BRCA_N_manifest.txt
+CHOL,manifest_files/First_stage_cancer/CHOL_C1_manifest.txt,manifest_files/Normal/CHOL_N_manifest.txt
+COAD,manifest_files/First_stage_cancer/COAD_C1_manifest.txt,manifest_files/Normal/COAD_N_manifest.txt
+ESCA,manifest_files/First_stage_cancer/ESCA_C1_manifest.txt,manifest_files/Normal/ESCA_N_manifest.txt
+HNSC,manifest_files/First_stage_cancer/HNSC_C1_manifest.txt,manifest_files/Normal/HNSC_N_manifest.txt

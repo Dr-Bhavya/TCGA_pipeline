@@ -1,0 +1,19 @@
+FROM rocker/r2u:26.04@sha256:5dce84d9d79eaa937c1478455915c09bf27c159a10b90f2a5968cfd604f7b8d3
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+ cmake=4.2* \ 
+ make=4.4* \ 
+ pandoc=3.7* \ 
+ && rm -rf /var/lib/apt/lists/*
+
+ENV CRAN_REPO="https://packagemanager.posit.co/cran/__linux__/resolute/2026-08-10"
+
+RUN echo 'options(repos = c(CRAN = Sys.getenv("CRAN_REPO")))' >> /usr/lib/R/etc/Rprofile.site
+
+RUN R -e "if (!require('BiocManager', quietly = TRUE)) install.packages('BiocManager'); \ 
+    BiocManager::install(version = '3.23', ask = FALSE); \ 
+    options(warn = 2); \ 
+    BiocManager::install(c('GDCRNATools', 'DESeq2', 'apeglm'), ask = FALSE); \ 
+    install.packages(c('RobustRankAggreg', 'ggplot2', 'ggrepel', 'data.table'))"
+
+CMD ["R", "--no-save", "--no-restore", "--no-environ"]
