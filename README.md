@@ -60,9 +60,11 @@ The pipeline integrates complex Nextflow automation processes, R data-wrangling,
 
 The main workflow script (`main.nf`) orchestrates data movement sequentially across parallel asynchronous execution channels:
 
+```text
 [input_manifest] ──┐
                    ├──> [Channel Join] ──> GDCRNATOOLS ──> DESEQ2 ──> .collect() ──> RRA
 [input_metadata] ──┘                        (Stage 1)     (Stage 2)     (Stage 3)     (Stage 4)
+```
 
 * **Dynamic Joins**: Ingests input manifest and clinical metadata CSV tracks independently, validating and pairing records on their matching `cancer_type` key before runtime initialization.
 * **Array Aggregation**: Monitors step states across independent asynchronously evaluated tasks, aggregating all variable length `DESEQ2.out.degs` files into a static flat array (`.collect()`) before passing them to the final `RRA` meta-analysis module.
