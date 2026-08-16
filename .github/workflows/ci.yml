@@ -3,24 +3,28 @@ name: End-to-End Pipeline Engine
 on:
   push:
     branches: [ main, master ]
+    paths:
+      - 'docker/**'
+      - 'main.nf'
+      - 'nextflow.config'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [ main, master ]
+    paths:
+      - 'docker/**'
+      - 'main.nf'
+      - 'nextflow.config'
+      - '.github/workflows/ci.yml'
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}/docker_tcga_env
 
 jobs:
-  # ==========================================================================
-  # JOB 1: BUILD + PUSH IMAGE (Runs on GitHub's hosted runner — plenty of RAM)
-  # ==========================================================================
-  build-and-push:
+  build-and-run:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
-      image_latest: ${{ steps.meta.outputs.latest }}
     steps:
     - name: Checkout Code Repository
       uses: actions/checkout@v5
@@ -38,7 +42,6 @@ jobs:
     - name: Set image tags
       id: meta
       run: |
-        # Docker/GHCR requires lowercase image names
         BASE=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
         echo "tag=${BASE}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
         echo "latest=${BASE}:latest" >> "$GITHUB_OUTPUT"
@@ -49,55 +52,30 @@ jobs:
         context: .
         file: docker/Dockerfile
         push: true
+        load: true
         tags: |
           ${{ steps.meta.outputs.tag }}
           ${{ steps.meta.outputs.latest }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # ==========================================================================
-  # JOB 2: PULL + RUN ON EC2 (Runs directly on your free-tier instance)
-  # ==========================================================================
-  run-on-ec2:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    steps:
-    - name: Checkout Code Repository
-      uses: actions/checkout@v5
+    - name: Install Nextflow
+      run: |
+        wget -qO- https://get.nextflow.io | bash
+        sudo mv nextflow /usr/local/bin/
+        nextflow -version
 
-    - name: Pull Image and Run Pipeline on EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.TCGA_AWS_EC2_PUBLIC_IP }}
-        username: ubuntu
-        key: ${{ secrets.TCGA_AWS_EC2_ACCESS_KEY }}
-        port: 22
-        timeout: 20m
-        script: |
-          echo "=== SYSTEM CHECK ==="
-          sudo apt-get update -y
-          sudo apt-get install -y docker.io curl
-          sudo usermod -aG docker ubuntu
+    - name: Run Pipeline
+      run: nextflow run main.nf -profile test -stub-run
 
-          echo "=== CLONE / UPDATE REPO ==="
-          cd /home/ubuntu
-          if [ -d "TCGA_pipeline" ]; then
-            cd TCGA_pipeline && git pull
-          else
-            git clone https://github.com/${{ github.repository }}.git TCGA_pipeline
-            cd TCGA_pipeline
-          fi
-
-          echo "=== INSTALL NEXTFLOW (if not already present) ==="
-          if ! command -v nextflow &> /dev/null; then
-            wget -qO- https://get.nextflow.io | bash
-            sudo mv nextflow /usr/local/bin/
-          fi
-          nextflow -version
-
-          echo "=== LOG IN TO GHCR AND PULL IMAGE ==="
-          echo "${{ secrets.GH_PAT }}" | sg docker -c "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
-          sg docker -c "docker pull ${{ needs.build-and-push.outputs.image_latest }}"
-
-          echo "=== RUN PIPELINE ==="
-          sg docker -c "nextflow run main.nf -profile test -stub-run"
+    - name: Commit and Push Results
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add results/
+        if git diff --cached --quiet; then
+          echo "No changes to commit."
+        else
+          git commit -m "Update pipeline results [skip ci]"
+          git push
+        fi
