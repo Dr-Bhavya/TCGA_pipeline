@@ -135,10 +135,11 @@ output {
     tiff_rra_dn { 
         path 'Downregulated_DEGs' 
     }
-    pdf_rra_up { 
-            path "s3://tcga-pipeline-data-lake/results"
+    /*pdf_rra_up {
+         path "s3://tcga-pipeline-data-lake/results"
         }   
     pdf_rra_dn { 
         path "s3://tcga-pipeline-data-lake/results" 
     }   
+    */
 }
