@@ -59,6 +59,13 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+
     - name: Install Nextflow
       run: |
         wget -qO- https://get.nextflow.io | bash
