@@ -63,7 +63,7 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::<640053197293>:role/EC2-S3-Bioinformatics-Role
+        role-to-assume: arn:aws:iam::640053197293:role/EC2-S3-Bioinformatics-Role
         aws-region: ap-south-1
 
     - name: Install Nextflow
