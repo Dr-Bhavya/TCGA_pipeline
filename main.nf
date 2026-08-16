@@ -129,15 +129,9 @@ output {
     rra_cons_dn {
         path 'Downregulated_DEGs'
     }  
-    pdf_rra_up { 
-        path 'Upregulated_DEGs' 
-    }
     tiff_rra_up { 
         path 'Upregulated_DEGs' 
-    }   
-    pdf_rra_dn { 
-        path 'Downregulated_DEGs' 
-    }   
+    }    
     tiff_rra_dn { 
         path 'Downregulated_DEGs' 
     }
