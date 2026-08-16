@@ -84,9 +84,9 @@ workflow {
         ranked_dn_mat = RRA.out.dn_ids_matrix
         rra_cons_up = RRA.out.rra_up
         rra_cons_dn = RRA.out.rra_dn
-        pdf_rra_up = RRA.out.pdf_up
+        //pdf_rra_up = RRA.out.pdf_up
         tiff_rra_up = RRA.out.tiff_up
-        pdf_rra_dn = RRA.out.pdf_dn
+        //pdf_rra_dn = RRA.out.pdf_dn
         tiff_rra_dn = RRA.out.tiff_dn
 }
 
