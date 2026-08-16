@@ -142,11 +142,9 @@ output {
         path 'Downregulated_DEGs' 
     }
     pdf_rra_up { 
-            directory "s3://your-output-bucket-name/results/plots"
-            path 'Upregulated_DEGs' 
+            path "s3://tcga-pipeline-data-lake/results"
         }   
     pdf_rra_dn { 
-        directory "s3://your-output-bucket-name/results/plots"
-        path 'Downregulated_DEGs' 
+        path "s3://tcga-pipeline-data-lake/results" 
     }   
 }
