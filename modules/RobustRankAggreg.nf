@@ -1,5 +1,6 @@
 process RRA {
     //container 'docker_tcga_env:latest'
+    publishDir "s3://tcga-pipeline-data-lake/results", mode: 'copy', pattern: '*.pdf'
 
     input:
         path deg_files
