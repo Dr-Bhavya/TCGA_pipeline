@@ -49,7 +49,6 @@ jobs:
           nextflow -version
 
           echo "=== BUILD DOCKER IMAGE ==="
-          sg docker -c "docker build -t docker_tcga_env:latest ."
-
+          sg docker -c "docker build -t docker_tcga_env:latest -f docker/Dockerfile ."
           echo "=== RUN PIPELINE ==="
           sg docker -c "nextflow run main.nf -profile test -stub-run"
