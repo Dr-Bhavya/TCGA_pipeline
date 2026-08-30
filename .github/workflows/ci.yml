@@ -87,7 +87,16 @@ jobs:
       
     - name: Run Pipeline
       run: nextflow run main.nf -profile test
-
+      
+    - name: Show Nextflow log on failure
+      if: always()
+      run: |
+        if [ -f .nextflow.log ]; then
+          tail -150 .nextflow.log
+        else
+          echo "No .nextflow.log found"
+        fi
+        
     - name: Commit and Push Results
       run: |
         git config user.name "github-actions[bot]"
