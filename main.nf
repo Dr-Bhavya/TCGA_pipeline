@@ -98,42 +98,55 @@ workflow {
 output {
     downloaded_files {
         path 'STAR_files'
+        mode 'copy'
     }
     count_matrix {
         path 'STAR_count_matrices'
+        mode 'copy'
     }
     condition_files {
         path 'STAR_files'
+        mode 'copy'
     }
     degs_results {
         path 'Significant_DEGs'
+        mode 'copy'
     }
     degs_up {
         path 'Upregulated_DEGs'
+        mode 'copy'
     }
     degs_dn {
         path 'Downregulated_DEGs'
+        mode 'copy'
     }  
     degs_matrix {
         path 'Significant_DEGs'
+        mode 'copy'
     }  
     ranked_up_mat {
         path 'Upregulated_DEGs'
+        mode 'copy'
     }  
     ranked_dn_mat {
         path 'Downregulated_DEGs'
+        mode 'copy'
     }
     rra_cons_up {
         path 'Upregulated_DEGs'
+        mode 'copy'
     }  
     rra_cons_dn {
         path 'Downregulated_DEGs'
+        mode 'copy'
     }  
     tiff_rra_up { 
-        path 'Upregulated_DEGs' 
+        path 'Upregulated_DEGs'
+        mode 'copy'
     }    
     tiff_rra_dn { 
-        path 'Downregulated_DEGs' 
+        path 'Downregulated_DEGs'
+        mode 'copy'
     }
     /*pdf_rra_up {
          path "s3://tcga-pipeline-data-lake/results"
