@@ -96,6 +96,11 @@ jobs:
         else
           echo "No .nextflow.log found"
         fi
+
+    - name: Debug file ownership
+      if: always()
+      run: |
+        find /home/runner/work/TCGA_pipeline/TCGA_pipeline/work -iname "*.parcel" -exec ls -la {} \; 2>/dev/null | head -20  
         
     - name: Commit and Push Results
       run: |
